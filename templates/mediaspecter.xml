@@ -1,23 +1,23 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>MediaSpektor</Name>
-  <Repository>ghcr.io/gillberg1111/mediaspektor:latest</Repository>
-  <Registry>https://ghcr.io/gillberg1111/mediaspektor</Registry>
+  <Name>MediaSpecter</Name>
+  <Repository>ghcr.io/gillberg1111/mediaspecter:latest</Repository>
+  <Registry>https://ghcr.io/gillberg1111/mediaspecter</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
   <WebUI>http://[IP]:[PORT:5000]</WebUI>
   <Overview>Reclaim disk space by replacing watched movies and TV episodes with tiny, valid dummy video files — while keeping watch history, posters and metadata fully intact across Plex, Jellyfin and Emby. Archived posters get an "ARCHIVED - X GB SAVED" badge, archiving propagates across all your servers, and Radarr/Sonarr items are unmonitored to prevent re-downloads. IMPORTANT: map /data to the SAME path your Plex/Jellyfin/Emby (and *arr) containers use, with read/write access, so the file paths the servers report line up on disk.</Overview>
-  <Project>https://github.com/gillberg1111/mediaspektor</Project>
-  <Support>https://github.com/gillberg1111/mediaspektor/issues</Support>
-  <ReadMe>https://raw.githubusercontent.com/gillberg1111/mediaspektor/main/README.md</ReadMe>
-  <Icon>https://raw.githubusercontent.com/gillberg1111/mediaspektor/main/static/mediaspektor-512.png</Icon>
-  <TemplateURL>https://raw.githubusercontent.com/gillberg1111/linearr/main/templates/mediaspektor.xml</TemplateURL>
+  <Project>https://github.com/gillberg1111/mediaspecter</Project>
+  <Support>https://github.com/gillberg1111/mediaspecter/issues</Support>
+  <ReadMe>https://raw.githubusercontent.com/gillberg1111/mediaspecter/main/README.md</ReadMe>
+  <Icon>https://raw.githubusercontent.com/gillberg1111/mediaspecter/main/static/mediaspecter-512.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/gillberg1111/linearr/main/templates/mediaspecter.xml</TemplateURL>
   <Category>MediaApp:Other Tools:Utilities</Category>
   <License>MIT</License>
-  <Config Name="WebUI Port" Target="5000" Default="5000" Mode="tcp" Description="Port for the MediaSpektor web dashboard." Type="Port" Display="always" Required="true" Mask="false">5000</Config>
-  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/mediaspektor" Mode="rw" Description="Stores config.yaml, the SQLite state DB, and poster backups. A default config is seeded on first run; finish setup in the Settings tab." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/mediaspektor</Config>
+  <Config Name="WebUI Port" Target="5000" Default="5000" Mode="tcp" Description="Port for the MediaSpecter web dashboard." Type="Port" Display="always" Required="true" Mask="false">5000</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/mediaspecter" Mode="rw" Description="Stores config.yaml, the SQLite state DB, and poster backups. A default config is seeded on first run; finish setup in the Settings tab." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/mediaspecter</Config>
   <Config Name="Media" Target="/data" Default="/mnt/user/data" Mode="rw" Description="Your media. MAP THIS TO THE SAME CONTAINER PATH your Plex/Jellyfin/Emby (and *arr) containers use (commonly /data), with read/write access, so the paths the servers report resolve 1:1. If it doesn't match, archiving fails with permission/not-found errors." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>
-  <Config Name="TMDB API key (optional)" Target="TMDB_API_KEY" Default="" Mode="" Description="Optional TMDB v3 key or v4 bearer token. Lets MediaSpektor match the same title across servers when they store different ID systems (e.g. Plex IMDB vs Jellyfin TMDB). Without it, matching falls back to file path + direct ID overlap." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="TMDB API key (optional)" Target="TMDB_API_KEY" Default="" Mode="" Description="Optional TMDB v3 key or v4 bearer token. Lets MediaSpecter match the same title across servers when they store different ID systems (e.g. Plex IMDB vs Jellyfin TMDB). Without it, matching falls back to file path + direct ID overlap." Type="Variable" Display="always" Required="false" Mask="true"></Config>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID the app runs as — dummy files it writes to your media get this owner. 99 (nobody) is the Unraid default." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID the app runs as. 100 (users) is the Unraid default." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
   <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Umask for files the app creates." Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
