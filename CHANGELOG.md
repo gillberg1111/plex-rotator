@@ -3,6 +3,22 @@
 All notable changes to Linearr. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.8.1] - 2026-07-19
+
+### Fixed
+
+- **One show with junk metadata no longer breaks the whole library on
+  franchise pages**
+  ([#16](https://github.com/gillberg1111/linearr/issues/16)). If any show's
+  TVDB provider field contains a non-numeric value (e.g. an IMDb `tt…` id
+  pasted into the TheTVDB slot), building the franchise match cache crashed
+  with *"Couldn't list from …: invalid literal for int()"* and every item in
+  the franchise preview showed as unavailable; franchise create and sync
+  failed the same way. Non-numeric TVDB ids are now dropped where each backend
+  reads them (Plex, Jellyfin, and Emby), and the match cache additionally
+  skips any non-numeric id instead of aborting — the affected show simply
+  falls back to title + year matching.
+
 ## [3.8.0] - 2026-07-18
 
 ### Added

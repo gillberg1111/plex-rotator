@@ -155,6 +155,17 @@ def _parse_tmdb_id(prov: dict) -> int | None:
     return None
 
 
+def _parse_tvdb_id(prov: dict) -> str | None:
+    """Extract the numeric TVDB id (kept as a string) from a Jellyfin
+    ProviderIds dict. Real-world libraries sometimes carry junk in this field —
+    e.g. an IMDb 'tt…' id pasted into the TVDB slot (issue #16) — and one bad
+    value must not poison downstream int() indexing, so non-numeric values are
+    dropped here at the edge."""
+    raw = prov.get("Tvdb") or prov.get("tvdb")
+    raw = str(raw).strip() if raw is not None else ""
+    return raw if raw.isdigit() else None
+
+
 def _device_id_path() -> str:
     """Where to persist our stable DeviceId. Lives next to the SQLite DB so it
     rides along on the same persistent volume."""
@@ -440,7 +451,7 @@ class JellyfinClient(MediaClient):
                     year=item.get("ProductionYear"),
                     library=lib_name,
                     thumb=rk if item.get("ImageTags", {}).get("Primary") else None,
-                    tvdb_id=prov.get("Tvdb") or None,
+                    tvdb_id=_parse_tvdb_id(prov),
                     tmdb_id=_parse_tmdb_id(prov),
                     imdb_id=prov.get("Imdb") or None,
                     status=item.get("Status"),
@@ -463,7 +474,7 @@ class JellyfinClient(MediaClient):
             year=item.get("ProductionYear"),
             library="",  # not exposed on the item dto
             thumb=str(item["Id"]) if item.get("ImageTags", {}).get("Primary") else None,
-            tvdb_id=prov.get("Tvdb") or None,
+            tvdb_id=_parse_tvdb_id(prov),
             tmdb_id=_parse_tmdb_id(prov),
             imdb_id=prov.get("Imdb") or None,
         )
@@ -628,7 +639,8 @@ class JellyfinClient(MediaClient):
     def find_show_by_tvdb_id(self, tvdb_id: int) -> ShowSummary | None:
         try:
             for show in self.list_all_shows():
-                if show.tvdb_id and int(show.tvdb_id) == tvdb_id:
+                if (show.tvdb_id and str(show.tvdb_id).isdigit()
+                        and int(show.tvdb_id) == tvdb_id):
                     return show
             return None
         except Exception:

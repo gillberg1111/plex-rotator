@@ -4558,6 +4558,73 @@ def test_live_playlist_order_cap():
             pass
 
 
+def test_provider_id_guards():
+    """Issue #16: a non-numeric value in the TVDB provider slot (e.g. an IMDb
+    'tt…' id) must be dropped at the client edge, not crash downstream."""
+    from types import SimpleNamespace as NS
+    from emby_client import _parse_tvdb_id as emby_tvdb
+    from jellyfin_client import _parse_tvdb_id as jf_tvdb
+    from plex_client import _tvdb_id_from_guids
+
+    check("emby tvdb: numeric kept", emby_tvdb({"Tvdb": "73545"}) == "73545")
+    check("emby tvdb: imdb junk dropped", emby_tvdb({"Tvdb": "tt0407362"}) is None)
+    check("emby tvdb: missing -> None", emby_tvdb({}) is None)
+    check("emby tvdb: lowercase key", emby_tvdb({"tvdb": "73545"}) == "73545")
+    check("emby tvdb: whitespace trimmed", emby_tvdb({"Tvdb": " 73545 "}) == "73545")
+    check("jf tvdb: numeric kept", jf_tvdb({"Tvdb": "73545"}) == "73545")
+    check("jf tvdb: imdb junk dropped", jf_tvdb({"Tvdb": "tt0407362"}) is None)
+    check("plex tvdb: numeric kept",
+          _tvdb_id_from_guids([NS(id="tvdb://73545")]) == "73545")
+    check("plex tvdb: query suffix stripped",
+          _tvdb_id_from_guids([NS(id="tvdb://73545?lang=en")]) == "73545")
+    check("plex tvdb: junk dropped",
+          _tvdb_id_from_guids([NS(id="tvdb://tt0407362")]) is None)
+
+    import service as _svc
+    check("int_or_none: int string", _svc._int_or_none("73545") == 73545)
+    check("int_or_none: int", _svc._int_or_none(73545) == 73545)
+    check("int_or_none: imdb junk", _svc._int_or_none("tt0407362") is None)
+    check("int_or_none: None", _svc._int_or_none(None) is None)
+    check("int_or_none: empty", _svc._int_or_none("") is None)
+
+
+def test_build_backend_cache_tolerates_bad_provider_ids():
+    """Issue #16 regression: one show with junk in its TVDB field crashed the
+    whole franchise library cache build ('Couldn't list from Emby: invalid
+    literal for int() ...'), marking every preview item unavailable. The bad
+    show must degrade to title+year matching; everything else stays indexed."""
+    import service as _svc
+    from media_client import ShowSummary, MovieSummary
+
+    class _FakeClient:
+        def list_all_movies(self):
+            return [MovieSummary(
+                rating_key="m1", title="Razor", year=2007, thumb=None,
+                air_date=None, view_count=0, tmdb_id=105, imdb_id="tt1035538")]
+
+        def list_all_shows(self):
+            return [
+                # The reporter's exact shape: IMDb id sitting in the Tvdb slot.
+                # (Edge guards now drop this in the clients, but the cache must
+                # survive it regardless of which path produced the summary.)
+                ShowSummary(rating_key="1", title="Battlestar Galactica",
+                            year=2004, library="TV", thumb=None,
+                            tvdb_id="tt0407362", tmdb_id=None, imdb_id=None),
+                ShowSummary(rating_key="2", title="Good Show", year=2020,
+                            library="TV", thumb=None,
+                            tvdb_id="73545", tmdb_id=1668, imdb_id="tt0386676"),
+            ]
+
+    cache = _svc._build_backend_cache("emby", _FakeClient())
+    check("cache: build survives junk tvdb", cache is not None)
+    check("cache: junk tvdb not indexed",
+          list(cache["show_by_tvdb"].keys()) == [73545])
+    check("cache: good tmdb indexed", 1668 in cache["show_by_tmdb"])
+    check("cache: bad show still matchable by title+year",
+          ("battlestar galactica", 2004) in cache["show_by_title_year"])
+    check("cache: movie indexed", 105 in cache["movie_by_tmdb"])
+
+
 def test_media_client_rename_default_raises():
     from media_client import MediaClient
     try:

@@ -95,11 +95,14 @@ def _title_match(movie_title: str, show_title: str) -> bool:
 
 
 def _tvdb_id_from_guids(guids) -> str | None:
-    """Extract numeric TVDB id from a list of plexapi Guid objects."""
+    """Extract numeric TVDB id from a list of plexapi Guid objects. Non-numeric
+    values (junk metadata, query-string suffixes) are dropped so one bad show
+    can't poison downstream int() indexing (issue #16)."""
     for g in (guids or []):
         gid = getattr(g, "id", "")
         if gid.startswith("tvdb://"):
-            return gid[len("tvdb://"):]
+            raw = gid[len("tvdb://"):].split("?")[0].strip()
+            return raw if raw.isdigit() else None
     return None
 
 
@@ -429,7 +432,8 @@ class PlexClient(MediaClient):
     def find_show_by_tvdb_id(self, tvdb_id: int) -> ShowSummary | None:
         try:
             for show in self.list_all_shows():
-                if show.tvdb_id and int(show.tvdb_id) == tvdb_id:
+                if (show.tvdb_id and str(show.tvdb_id).isdigit()
+                        and int(show.tvdb_id) == tvdb_id):
                     return show
             return None
         except Exception:

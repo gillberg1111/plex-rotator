@@ -1633,6 +1633,17 @@ def _normalize_cl_key(cl_id: str) -> str:
     return cl_id.replace('-', '_')
 
 
+def _int_or_none(value) -> int | None:
+    """int(value), or None when it isn't cleanly numeric. Provider ids can
+    carry junk (e.g. an IMDb 'tt…' id in the TVDB slot — issue #16); a bad id
+    on ONE show must degrade that show to title+year matching, never abort the
+    whole library cache build."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
 def _build_backend_cache(backend: str, client: MediaClient) -> dict:
     all_movies = client.list_all_movies()
     all_shows = client.list_all_shows()
@@ -1660,10 +1671,12 @@ def _build_backend_cache(backend: str, client: MediaClient) -> dict:
             (_normalize_for_match(m.title), m.year): m for m in all_movies
         },
         "show_by_tvdb": {
-            int(s.tvdb_id): s for s in all_shows if s.tvdb_id
+            k: s for s in all_shows
+            if s.tvdb_id and (k := _int_or_none(s.tvdb_id)) is not None
         },
         "show_by_tmdb": {
-            int(s.tmdb_id): s for s in all_shows if s.tmdb_id
+            k: s for s in all_shows
+            if s.tmdb_id and (k := _int_or_none(s.tmdb_id)) is not None
         },
         "show_by_imdb": {s.imdb_id: s for s in all_shows if s.imdb_id},
         "show_by_title_year": {
