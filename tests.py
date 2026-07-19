@@ -4558,6 +4558,113 @@ def test_live_playlist_order_cap():
             pass
 
 
+def test_media_client_rename_default_raises():
+    from media_client import MediaClient
+    try:
+        MediaClient.rename_playlist(None, "id1", "New Name")
+        check("rename ABC: default raises", False)
+    except NotImplementedError:
+        check("rename ABC: default raises", True)
+
+
+def test_rename_managed_playlist():
+    import os, tempfile
+    import db as _db_mod
+    import service as _svc
+
+    orig_path = _db_mod.DB_PATH
+    tmp = tempfile.mktemp(suffix=".db")
+    try:
+        _db_mod.DB_PATH = tmp
+        _db_mod.init_db()
+        with _db_mod.connection() as conn:
+            conn.execute(
+                "INSERT INTO managed_playlists (name, backend, plex_rating_key, jellyfin_playlist_id, created_at) "
+                "VALUES ('Linearr 001','plex,jellyfin','pl1','jf1','')")
+            conn.execute(
+                "INSERT INTO managed_playlists (name, backend, created_at) VALUES ('Taken','plex','')")
+        PID = 1
+
+        calls: list[tuple[str, str, str]] = []
+
+        class _FakeClient:
+            def __init__(self, be, fail=False):
+                self.be, self.fail = be, fail
+
+            def rename_playlist(self, pl_id, new_title):
+                calls.append((self.be, pl_id, new_title))
+                if self.fail:
+                    raise RuntimeError("boom")
+
+        _orig_cl = _svc._clients_for_playlist
+        try:
+            # Happy path: every backend renamed, DB updated, input trimmed.
+            _svc._clients_for_playlist = lambda row: [
+                ("plex", _FakeClient("plex"), "pl1"),
+                ("jellyfin", _FakeClient("jellyfin"), "jf1"),
+            ]
+            failed = _svc.rename_managed_playlist(PID, "  Cartoon Night  ")
+            check("rename: no failures", failed == [])
+            check("rename: both backends called",
+                  calls == [("plex", "pl1", "Cartoon Night"),
+                            ("jellyfin", "jf1", "Cartoon Night")])
+            check("rename: db name updated (trimmed)",
+                  _db_mod.get_playlist(PID)["name"] == "Cartoon Night")
+
+            # Same name: no-op, no backend calls.
+            calls.clear()
+            failed = _svc.rename_managed_playlist(PID, "Cartoon Night")
+            check("rename: same name no-op", failed == [] and calls == [])
+
+            # Duplicate name: ValueError before any backend call.
+            calls.clear()
+            try:
+                _svc.rename_managed_playlist(PID, "Taken")
+                check("rename: duplicate raises", False)
+            except ValueError:
+                check("rename: duplicate raises", True)
+            check("rename: duplicate made no backend calls", calls == [])
+            check("rename: duplicate left db name",
+                  _db_mod.get_playlist(PID)["name"] == "Cartoon Night")
+
+            # Empty / whitespace name: ValueError.
+            try:
+                _svc.rename_managed_playlist(PID, "   ")
+                check("rename: empty raises", False)
+            except ValueError:
+                check("rename: empty raises", True)
+
+            # Partial backend failure: reported, local rename still applied,
+            # backends without a stored playlist id are skipped.
+            calls.clear()
+            _svc._clients_for_playlist = lambda row: [
+                ("plex", _FakeClient("plex"), "pl1"),
+                ("jellyfin", _FakeClient("jellyfin", fail=True), "jf1"),
+                ("emby", _FakeClient("emby"), None),
+            ]
+            failed = _svc.rename_managed_playlist(PID, "Toon Block")
+            check("rename: failed backend reported", failed == ["jellyfin"])
+            check("rename: missing id skipped",
+                  all(c[0] != "emby" for c in calls))
+            check("rename: db renamed despite failure",
+                  _db_mod.get_playlist(PID)["name"] == "Toon Block")
+
+            # Missing playlist: ValueError.
+            try:
+                _svc.rename_managed_playlist(999, "X")
+                check("rename: missing playlist raises", False)
+            except ValueError:
+                check("rename: missing playlist raises", True)
+        finally:
+            _svc._clients_for_playlist = _orig_cl
+    finally:
+        _db_mod.DB_PATH = orig_path
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
 def main() -> int:
     tests = [v for k, v in globals().items() if k.startswith("test_")]
     for t in tests:

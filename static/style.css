@@ -102,6 +102,31 @@ main {
 }
 .subtitle { color: var(--fg-dim); margin: 0.35rem 0 0; }
 
+/* Inline playlist rename (playlist detail page-head) */
+.rename-btn {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 1.05rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 8px;
+  vertical-align: middle;
+  transition: color 0.15s, background 0.15s;
+}
+.rename-btn:hover {
+  color: var(--accent);
+  background: rgba(77, 150, 255, 0.12);
+}
+.rename-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.rename-form[hidden] { display: none; }
+.rename-form .name-input { max-width: 320px; }
+
 h2 {
   font-size: 1.1rem;
   font-weight: 600;

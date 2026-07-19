@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "3.7.2"
+__version__ = "3.8.0"
 
 import logging
 import os
@@ -2168,6 +2168,21 @@ def create_app() -> Flask:
             lambda: service.reorder_shows(playlist_id, ordered),
             ok_msg="Order updated.",
             fail_label="Reorder",
+        )
+
+    @app.route("/playlist/<int:playlist_id>/rename", methods=["POST"])
+    def rename_playlist(playlist_id: int):
+        new_name = (request.form.get("name") or "").strip()
+        return _playlist_action(
+            playlist_id,
+            lambda: service.rename_managed_playlist(playlist_id, new_name),
+            ok_msg=lambda failed: (
+                "Playlist renamed, but the rename failed on: "
+                + ", ".join(b.title() for b in failed)
+                + ". The server-side playlist keeps its old name there."
+                if failed else "Playlist renamed."
+            ),
+            fail_label="Rename",
         )
 
     @app.route("/playlist/<int:playlist_id>/delete", methods=["POST"])

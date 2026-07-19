@@ -240,6 +240,14 @@ class MediaClient(ABC):
     def delete_playlist(self, rating_key: str) -> None:
         """Delete the playlist itself. Must NOT touch the underlying items."""
 
+    def rename_playlist(self, rating_key: str, new_title: str) -> None:
+        """Rename the playlist on the backend. Non-abstract so test fakes and
+        future backends don't break; real clients override. Raising here lets
+        the service layer report the backend as failed rather than crash."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support renaming playlists"
+        )
+
     @abstractmethod
     def add_items_to_playlist(
         self, rating_key: str, item_rating_keys: list[str]

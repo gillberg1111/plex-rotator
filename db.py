@@ -642,6 +642,14 @@ def set_auto_sync(playlist_id: int, auto_sync: bool) -> None:
         )
 
 
+def rename_playlist(playlist_id: int, name: str) -> None:
+    with connection() as conn:
+        conn.execute(
+            "UPDATE managed_playlists SET name = ? WHERE id = ?",
+            (name, playlist_id),
+        )
+
+
 def set_pruning_enabled(playlist_id: int, enabled: bool) -> None:
     with connection() as conn:
         conn.execute(

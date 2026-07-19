@@ -230,6 +230,8 @@ untouched; the future portion regenerates instantly.
   new seasons into playlists and drops episodes removed from your library.
   Toggle globally (`AUTO_SYNC`) or per playlist (**Auto-update** pill).
 - **Manual "Sync Now"** — force an immediate sync; reports added/removed counts.
+- **Rename playlists** — the ✎ button next to the playlist title renames it in
+  Linearr and on every backend it lives on (Plex, Jellyfin, and Emby).
 - **Metadata refresh** — a button asks every configured backend to re-fetch
   metadata for all shows in the playlist (useful when air dates look wrong).
 - **Cover art** — deterministic TMDB posters on franchise playlists; poster

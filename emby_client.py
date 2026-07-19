@@ -798,6 +798,34 @@ class EmbyClient(MediaClient):
         )
         _log.info("Emby delete_playlist: DELETE /Items?Ids=%s -> %s", rating_key, resp.status_code)
 
+    def rename_playlist(self, rating_key: str, new_title: str) -> None:
+        """Rename via the metadata-editor path: fetch the full item dto from
+        the user-scoped `/Users/{id}/Items/{id}` (the reliable read path on
+        Emby), change Name, POST the dto back to `/Items/{id}`. Emby has no
+        playlist-update endpoint (POST /Playlists/{id} is Jellyfin-only), and
+        `/Items/{id}` expects the full dto — a partial body wipes fields.
+        Confirms the target is a Playlist first."""
+        if not rating_key or not new_title:
+            return
+        check = self._request("GET", "/Items", params={"Ids": rating_key})
+        items = (check.json().get("Items") or []) if check.ok else []
+        if not items or items[0].get("Type") != "Playlist":
+            raise EmbyAPIError(
+                f"Refusing to rename item {rating_key!r}: not a Playlist"
+            )
+        resp = self._request("GET", f"/Users/{self._user_id}/Items/{rating_key}")
+        if not resp.ok:
+            raise EmbyAPIError(
+                f"Rename: fetch item {rating_key} returned {resp.status_code}"
+            )
+        dto = resp.json()
+        dto["Name"] = new_title
+        upd = self._request("POST", f"/Items/{rating_key}", json=dto)
+        if not upd.ok:
+            raise EmbyAPIError(
+                f"Rename playlist {rating_key} returned {upd.status_code}"
+            )
+
     def add_items_to_playlist(
         self, rating_key: str, item_rating_keys: list[str]
     ) -> None:

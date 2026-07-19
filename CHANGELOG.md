@@ -3,6 +3,19 @@
 All notable changes to Linearr. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.8.0] - 2026-07-18
+
+### Added
+
+- **Rename playlists** (requested in
+  [#15](https://github.com/gillberg1111/linearr/issues/15)). Click the ✎
+  button next to the playlist title on its detail page, type a new name, and
+  Linearr renames the playlist locally **and on every backend it lives on**
+  (Plex, Jellyfin, and Emby all supported). Duplicate and empty names are
+  rejected with a clear message; if a backend can't be reached, the local
+  rename still applies and the failing backend is called out so you can re-run
+  the rename once it's reachable (or fix the name server-side by hand).
+
 ## [3.7.2] - 2026-06-12
 
 ### Changed

@@ -519,6 +519,14 @@ class PlexClient(MediaClient):
         # items (Episode/Show/Season/Movie) are blocked.
         pl.delete()
 
+    def rename_playlist(self, rating_key: str, new_title: str) -> None:
+        if not rating_key or not new_title:
+            return
+        pl = self._get_playlist(rating_key)
+        if pl is None:
+            raise RuntimeError(f"Plex playlist {rating_key!r} not found")
+        pl.editTitle(new_title)
+
     def add_items_to_playlist(
         self, rating_key: str, item_rating_keys: list[str]
     ) -> None:

@@ -4,14 +4,41 @@
   <a href="{{ url_for('index') }}" class="back">← All playlists</a>
 
   <div class="page-head">
-    <h1>
+    <h1 id="playlistTitleRow">
       {{ playlist.name }}
       {% if AVAILABLE_BACKENDS|length > 1 or playlist.badge_label != 'P' %}
         <span class="backend-badge backend-badge-inline {{ playlist.badge_css }}">
           {{ playlist.badge_label }}
         </span>
       {% endif %}
+      <button type="button" class="rename-btn" id="renameBtn"
+              title="Rename playlist" aria-label="Rename playlist">✎</button>
     </h1>
+    <form method="post" data-ajax action="{{ url_for('rename_playlist', playlist_id=playlist.id) }}"
+          class="rename-form" id="renameForm" hidden>
+      <input type="text" name="name" value="{{ playlist.name }}" maxlength="120"
+             required class="name-input" id="renameInput" autocomplete="off">
+      <button type="submit" class="btn btn-sm btn-primary">Rename</button>
+      <button type="button" class="btn btn-sm" id="renameCancel">Cancel</button>
+      <span class="hint">Renames the playlist here and on every backend it lives on.</span>
+    </form>
+    <script>
+      (function () {
+        var row = document.getElementById('playlistTitleRow');
+        var form = document.getElementById('renameForm');
+        document.getElementById('renameBtn').addEventListener('click', function () {
+          row.hidden = true;
+          form.hidden = false;
+          var inp = document.getElementById('renameInput');
+          inp.focus();
+          inp.select();
+        });
+        document.getElementById('renameCancel').addEventListener('click', function () {
+          form.hidden = true;
+          row.hidden = false;
+        });
+      })();
+    </script>
     {% set mode_labels = {
       'rotation': 'Rotation',
       'air_date': 'Air Date',

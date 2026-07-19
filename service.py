@@ -2818,6 +2818,50 @@ def sync_all() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def rename_managed_playlist(playlist_id: int, new_name: str) -> list[str]:
+    """Rename the playlist on every backend it targets, then update the local
+    row. Returns the list of backends whose rename FAILED (empty == all good)
+    so the caller can warn the user. The local row is renamed even on partial
+    backend failure — the server-side name can be fixed by hand; a mismatch
+    never breaks sync (dispatch is by stored id, not name)."""
+    row = db.get_playlist(playlist_id)
+    if not row:
+        raise ValueError("Playlist not found")
+    new_name = (new_name or "").strip()
+    if not new_name:
+        raise ValueError("Playlist name cannot be empty.")
+    old_name = row["name"]
+    if new_name == old_name:
+        return []
+    # Pre-check name uniqueness for a clean user-facing error before SQLite raises.
+    with db.connection() as conn:
+        clash = conn.execute(
+            "SELECT 1 FROM managed_playlists WHERE name = ? AND id != ?",
+            (new_name, playlist_id),
+        ).fetchone()
+    if clash:
+        raise ValueError(
+            f"A playlist named {new_name!r} already exists. Pick a different name."
+        )
+    failed: list[str] = []
+    for tb, client, pl_id in _clients_for_playlist(row):
+        if not pl_id:
+            continue
+        try:
+            client.rename_playlist(pl_id, new_name)
+        except Exception:
+            log.warning(
+                "Failed to rename %s playlist for '%s'", tb, old_name, exc_info=True
+            )
+            failed.append(tb)
+    db.rename_playlist(playlist_id, new_name)
+    log.info(
+        "Renamed managed playlist '%s' -> '%s' (backend failures: %s)",
+        old_name, new_name, failed or "none",
+    )
+    return failed
+
+
 def delete_managed_playlist(playlist_id: int) -> list[str]:
     """Delete the playlist on every backend it targets, then remove the local
     row. Returns the list of backends whose deletion FAILED (empty == all good)

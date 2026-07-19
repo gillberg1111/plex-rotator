@@ -762,6 +762,20 @@ class JellyfinClient(MediaClient):
             _bypass_delete_check=True,
         )
 
+    def rename_playlist(self, rating_key: str, new_title: str) -> None:
+        """Rename via `POST /Playlists/{id}` with UpdatePlaylistDto.Name only —
+        omitting `Ids` leaves the playlist contents untouched (same endpoint
+        replace_playlist_items uses for the atomic rebuild)."""
+        if not rating_key or not new_title:
+            return
+        resp = self._request("POST", f"/Playlists/{rating_key}", json={
+            "Name": new_title,
+        })
+        if not resp.ok:
+            raise JellyfinAPIError(
+                f"Rename playlist {rating_key} returned {resp.status_code}"
+            )
+
     def add_items_to_playlist(
         self, rating_key: str, item_rating_keys: list[str]
     ) -> None:
