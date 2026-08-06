@@ -2020,22 +2020,25 @@ def _resolve_show_for_item(fi: dict, cache: dict):
     Uses the backend cache's indexes in priority order: TVDB first (Trakt lists),
     then TMDB (Chronolists), then normalized title+year fallback.
     """
-    show_tvdb = fi.get("show_tvdb_id") or fi.get("tvdb_id")
-    if show_tvdb:
-        s = cache["show_by_tvdb"].get(int(show_tvdb))
+    # Franchise data (Trakt / Chronolists / user-edited Maker JSON) can carry
+    # junk ids just like backend ProviderIds can (issue #16) — degrade the item
+    # to title+year matching, never let one bad id abort the whole match.
+    show_tvdb = _int_or_none(fi.get("show_tvdb_id") or fi.get("tvdb_id"))
+    if show_tvdb is not None:
+        s = cache["show_by_tvdb"].get(show_tvdb)
         if s:
             return s
-    show_tmdb = fi.get("show_tmdb_id")
-    if show_tmdb:
-        s = cache["show_by_tmdb"].get(int(show_tmdb))
+    show_tmdb = _int_or_none(fi.get("show_tmdb_id"))
+    if show_tmdb is not None:
+        s = cache["show_by_tmdb"].get(show_tmdb)
         if s:
             return s
         # Bridge TMDB-keyed franchise data to a TVDB/IMDB-scraped library:
         # resolve the show's TMDB id to its TVDB/IMDB id via TMDB and retry.
         ext = _franchise_external_ids("tv", show_tmdb)
-        ext_tvdb = ext.get("tvdb_id")
-        if ext_tvdb and cache["show_by_tvdb"].get(int(ext_tvdb)):
-            return cache["show_by_tvdb"][int(ext_tvdb)]
+        ext_tvdb = _int_or_none(ext.get("tvdb_id"))
+        if ext_tvdb is not None and cache["show_by_tvdb"].get(ext_tvdb):
+            return cache["show_by_tvdb"][ext_tvdb]
         ext_imdb = ext.get("imdb_id")
         if ext_imdb and cache.get("show_by_imdb", {}).get(ext_imdb):
             return cache["show_by_imdb"][ext_imdb]

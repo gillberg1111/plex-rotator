@@ -825,7 +825,24 @@ class EmbyClient(MediaClient):
             raise EmbyAPIError(
                 f"Refusing to rename item {rating_key!r}: not a Playlist"
             )
+        # The metadata-editor read is user-scoped, but the resolved _user_id
+        # isn't necessarily the playlist's owner (the same scoping trap
+        # delete_playlist hit — v3.0.2): on a miss, retry as each other user
+        # before giving up.
         resp = self._request("GET", f"/Users/{self._user_id}/Items/{rating_key}")
+        if not resp.ok:
+            try:
+                users = self._request("GET", "/Users").json() or []
+            except Exception:
+                users = []
+            for u in users:
+                uid = u.get("Id")
+                if not uid or uid == self._user_id:
+                    continue
+                alt = self._request("GET", f"/Users/{uid}/Items/{rating_key}")
+                if alt.ok:
+                    resp = alt
+                    break
         if not resp.ok:
             raise EmbyAPIError(
                 f"Rename: fetch item {rating_key} returned {resp.status_code}"

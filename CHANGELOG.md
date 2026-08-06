@@ -3,6 +3,24 @@
 All notable changes to Linearr. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.8.2] - 2026-08-06
+
+### Fixed
+
+- **Renaming a playlist owned by a different Emby user now works.** The rename
+  added in 3.8.0 fetched the playlist's metadata through the configured Emby
+  user; if the playlist was created by (and belongs to) a different user on the
+  server, that read came back empty and the rename failed with *"the rename
+  failed on: Emby"*. Emby renames now retry the metadata read as each server
+  user before giving up — the same owner-mismatch case playlist deletion
+  learned to handle in 3.0.2.
+- **Junk provider ids in franchise list data can no longer abort matching.**
+  3.8.1 guarded the ids your media servers report, but ids coming from the
+  franchise definitions themselves (Trakt / Chronolists / hand-edited custom
+  JSON) were still converted unguarded — one non-numeric value there could
+  still crash franchise preview and sync. Those ids now degrade to title + year
+  matching too.
+
 ## [3.8.1] - 2026-07-19
 
 ### Fixed

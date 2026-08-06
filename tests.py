@@ -2563,6 +2563,33 @@ def test_resolve_show_for_item_tmdb_fallback():
     check("resolve_tmdb: correct show", result.rating_key == "jf_show_99")
 
 
+def test_resolve_show_for_item_junk_ids():
+    """Junk provider ids in franchise item data (issue #16 class) must not
+    raise — the item degrades to title+year matching."""
+    from service import _resolve_show_for_item, _normalize_for_match
+    from media_client import ShowSummary
+    show = ShowSummary(
+        rating_key="em_show_1", title="Battlestar Galactica", year=2004,
+        library="TV", thumb=None, tvdb_id=None, tmdb_id=None,
+    )
+    cache = {
+        "show_by_tvdb": {},
+        "show_by_tmdb": {},
+        "show_by_title_year": {
+            (_normalize_for_match("Battlestar Galactica"), 2004): show
+        },
+    }
+    item = {"show_tvdb_id": "tt0407362", "show_tmdb_id": "junk",
+            "show_title": "Battlestar Galactica", "year": 2004}
+    try:
+        result = _resolve_show_for_item(item, cache)
+        check("resolve_junk: no crash", True)
+        check("resolve_junk: title+year fallback",
+              result is not None and result.rating_key == "em_show_1")
+    except ValueError as e:
+        check("resolve_junk: no crash", False, repr(e))
+
+
 # --------------------------------------------------------------------------- #
 # v2.5.0 — Chronolists auto-discovery tests
 # --------------------------------------------------------------------------- #
@@ -4632,6 +4659,66 @@ def test_media_client_rename_default_raises():
         check("rename ABC: default raises", False)
     except NotImplementedError:
         check("rename ABC: default raises", True)
+
+
+def test_emby_rename_owner_fallback():
+    """Emby rename: when the resolved user can't see the playlist (owner
+    mismatch — the v3.0.2 scoping trap), the dto fetch retries as each other
+    user instead of failing; the happy path never lists users."""
+    import json as _j
+    import requests as _r
+    import emby_client as _ec
+
+    class _Rec:
+        _user_id = "u1"
+
+        def __init__(self, u1_sees_playlist):
+            self.calls = []
+            self._u1_ok = u1_sees_playlist
+
+        def _request(self, method, path, *, params=None, json=None, **kw):
+            self.calls.append((method, path, params, json))
+            r = _r.Response()
+            r.status_code = 200
+            if method == "GET" and path == "/Items":
+                r._content = _j.dumps(
+                    {"Items": [{"Id": "pl9", "Type": "Playlist"}]}).encode()
+            elif method == "GET" and path == "/Users/u1/Items/pl9":
+                if self._u1_ok:
+                    r._content = _j.dumps({"Id": "pl9", "Name": "Old"}).encode()
+                else:
+                    r.status_code = 404
+                    r._content = b""
+            elif method == "GET" and path == "/Users":
+                r._content = _j.dumps([{"Id": "u1"}, {"Id": "u2"}]).encode()
+            elif method == "GET" and path == "/Users/u2/Items/pl9":
+                r._content = _j.dumps({"Id": "pl9", "Name": "Old"}).encode()
+            else:
+                r._content = b"{}"
+            return r
+
+    # Owner mismatch: u1's read misses, u2's succeeds, rename still lands.
+    rec = _Rec(u1_sees_playlist=False)
+    _add_recorder_method(rec, _ec.EmbyClient, "rename_playlist")
+    rec.rename_playlist("pl9", "New Name")
+    posts = [(p, j) for m, p, _, j in rec.calls if m == "POST"]
+    check("em rename fallback: one POST", len(posts) == 1)
+    check("em rename fallback: full dto with new name",
+          bool(posts) and posts[0][0] == "/Items/pl9"
+          and posts[0][1].get("Name") == "New Name"
+          and posts[0][1].get("Id") == "pl9")
+    check("em rename fallback: tried other user",
+          any(p == "/Users/u2/Items/pl9" for _, p, _, _ in rec.calls))
+
+    # Happy path: u1 sees the playlist — no /Users enumeration.
+    rec2 = _Rec(u1_sees_playlist=True)
+    _add_recorder_method(rec2, _ec.EmbyClient, "rename_playlist")
+    rec2.rename_playlist("pl9", "New Name")
+    check("em rename happy: no user enumeration",
+          not any(p == "/Users" for _, p, _, _ in rec2.calls))
+    posts2 = [(p, j) for m, p, _, j in rec2.calls if m == "POST"]
+    check("em rename happy: renamed",
+          len(posts2) == 1 and posts2[0][1].get("Name") == "New Name")
 
 
 def test_rename_managed_playlist():
